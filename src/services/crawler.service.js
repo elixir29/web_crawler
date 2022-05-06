@@ -38,14 +38,46 @@ const getData = async (page) => {
   return grabParagraph;
 };
 
+const checkTotalReviews = async (page) => {
+  const totalReviesString = await page.evaluate(async () => {
+    const total = await document.querySelector("#reviewtab a span");
+    return total.innerText;
+  });
+  const step1 = totalReviesString.split("(")[1];
+  const final = parseInt(step1.toString().split(")")[0]);
+  return parseInt(final / 5);
+};
+
+const getNewPageLink = async (page) => {
+  const newLink = await page.evaluate(async () => {
+    const grabLink = await document
+      .querySelector(`a[title="Next"]`)
+      .getAttribute("href");
+    return grabLink || "no link";
+  });
+  return newLink.trim();
+};
+
 const fetchReviewData = async (productURL) => {
+  const mainURL = `https://www.tigerdirect.com`;
+  var baseURL = productURL;
+  const ans = [];
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
-  await page.goto(productURL);
-  const data = await getData(page);
-
+  await page.goto(baseURL);
+  const totalReviewsPagination = await checkTotalReviews(page);
+  for (var i = 0; i <= totalReviewsPagination; i++) {
+    const page = await browser.newPage();
+    await page.goto(baseURL);
+    const data = await getData(page);
+    ans.push(...data);
+    if (i !== totalReviewsPagination) {
+      const newPageLink = await getNewPageLink(page);
+      baseURL = mainURL + newPageLink;
+    }
+  }
   await browser.close();
-  return data;
+  return ans;
 };
 
 module.exports = { fetchReviewData };
